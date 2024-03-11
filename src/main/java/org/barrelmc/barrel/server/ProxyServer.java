@@ -16,15 +16,13 @@ import com.github.steveice10.mc.protocol.data.status.ServerStatusInfo;
 import com.github.steveice10.mc.protocol.data.status.VersionInfo;
 import com.github.steveice10.mc.protocol.data.status.handler.ServerInfoBuilder;
 import com.github.steveice10.opennbt.NBTIO;
-import com.github.steveice10.opennbt.tag.builtin.*;
+import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.packetlib.Server;
 import com.github.steveice10.packetlib.event.server.ServerAdapter;
 import com.github.steveice10.packetlib.event.server.ServerClosedEvent;
 import com.github.steveice10.packetlib.event.server.SessionAddedEvent;
 import com.github.steveice10.packetlib.event.server.SessionRemovedEvent;
 import com.github.steveice10.packetlib.tcp.TcpServer;
-import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
-import com.nukkitx.protocol.bedrock.v560.Bedrock_v560;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import org.barrelmc.barrel.Barrel;
@@ -34,16 +32,19 @@ import org.barrelmc.barrel.config.Config;
 import org.barrelmc.barrel.network.JavaPacketHandler;
 import org.barrelmc.barrel.player.Player;
 import org.barrelmc.barrel.utils.FileManager;
+import org.barrelmc.barrel.utils.NbtBlockDefinitionRegistry;
+import org.cloudburstmc.nbt.NBTInputStream;
+import org.cloudburstmc.nbt.NbtMap;
+import org.cloudburstmc.nbt.NbtType;
+import org.cloudburstmc.nbt.NbtUtils;
+import org.cloudburstmc.protocol.bedrock.codec.BedrockCodec;
+import org.cloudburstmc.protocol.bedrock.codec.v662.Bedrock_v662;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 
@@ -54,7 +55,7 @@ public class ProxyServer {
     @Getter
     private final Map<String, Player> onlinePlayers = new ConcurrentHashMap<>();
     @Getter
-    private final BedrockPacketCodec bedrockPacketCodec = Bedrock_v560.V560_CODEC;
+    private final BedrockCodec bedrockPacketCodec = Bedrock_v662.CODEC;
 
     @Getter
     private final Path dataPath;
@@ -70,6 +71,9 @@ public class ProxyServer {
     @Getter
     private final CompoundTag dimensionTag;
 
+    @Getter
+    private NbtBlockDefinitionRegistry blockDefinitions;
+
     public ProxyServer(String dataPath) {
         instance = this;
         this.dataPath = Paths.get(dataPath);
@@ -79,7 +83,19 @@ public class ProxyServer {
         }
 
         try {
-            this.dimensionTag = (CompoundTag) NBTIO.readTag(new GZIPInputStream(Objects.requireNonNull(Barrel.class.getClassLoader().getResourceAsStream("registry-codec.dat"))), true);
+            this.dimensionTag = (CompoundTag) NBTIO.readTag((InputStream) new DataInputStream(new GZIPInputStream(Objects.requireNonNull(Barrel.class.getClassLoader().getResourceAsStream("registry-codec.nbt")))));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            InputStream inputStream = Objects.requireNonNull(Barrel.class.getClassLoader().getResourceAsStream("block_palette.nbt"));
+            NBTInputStream nbtInputStream = NbtUtils.createGZIPReader(inputStream);
+            Object object = nbtInputStream.readTag();
+            if (object instanceof NbtMap) {
+                NbtMap blocksTag = (NbtMap) object;
+                this.blockDefinitions = new NbtBlockDefinitionRegistry(blocksTag.getList("blocks", NbtType.COMPOUND));
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -117,11 +133,11 @@ public class ProxyServer {
         Server server = new TcpServer(this.config.getBindAddress(), this.config.getPort(), MinecraftProtocol::new);
         server.setGlobalFlag(MinecraftConstants.SESSION_SERVICE_KEY, sessionService);
         server.setGlobalFlag(MinecraftConstants.VERIFY_USERS_KEY, false);
-        server.setGlobalFlag(MinecraftConstants.SERVER_INFO_BUILDER_KEY, (ServerInfoBuilder) session -> new ServerStatusInfo(new VersionInfo(MinecraftCodec.CODEC.getMinecraftVersion(), MinecraftCodec.CODEC.getProtocolVersion()), new PlayerInfo(10, 0, new GameProfile[0]), Component.text(this.config.getMotd()), null, false));
+        server.setGlobalFlag(MinecraftConstants.SERVER_INFO_BUILDER_KEY, (ServerInfoBuilder) session -> new ServerStatusInfo(new VersionInfo(MinecraftCodec.CODEC.getMinecraftVersion(), MinecraftCodec.CODEC.getProtocolVersion()), new PlayerInfo(10, 0, new ArrayList<>()), Component.text(this.config.getMotd()), null, false));
         server.setGlobalFlag(MinecraftConstants.SERVER_LOGIN_HANDLER_KEY, (ServerLoginHandler) session -> {
             GameProfile profile = session.getFlag(MinecraftConstants.PROFILE_KEY);
             System.out.println(profile.getName() + " logged in");
-            if (AuthManager.getInstance().getLoginPlayers().get(profile.getName()) == null) {
+            if (!AuthManager.getInstance().getLoginPlayers().containsKey(profile.getName()) && this.getPlayerByName(profile.getName()) == null) {
                 session.addListener(new AuthServer(session, profile.getName()));
             }
         });

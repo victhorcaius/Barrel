@@ -7,12 +7,6 @@ import com.github.steveice10.mc.protocol.data.game.level.block.BlockEntityInfo;
 import com.github.steveice10.mc.protocol.packet.ingame.clientbound.level.ClientboundLevelChunkWithLightPacket;
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.opennbt.tag.builtin.LongArrayTag;
-import com.nukkitx.nbt.NBTInputStream;
-import com.nukkitx.nbt.NbtMap;
-import com.nukkitx.nbt.NbtMapBuilder;
-import com.nukkitx.nbt.util.stream.NetworkDataInputStream;
-import com.nukkitx.network.VarInts;
-import com.nukkitx.protocol.bedrock.BedrockPacket;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
@@ -22,16 +16,30 @@ import org.barrelmc.barrel.player.Player;
 import org.barrelmc.barrel.utils.Utils;
 import org.barrelmc.barrel.utils.nukkit.BitArray;
 import org.barrelmc.barrel.utils.nukkit.BitArrayVersion;
+import org.cloudburstmc.nbt.NBTInputStream;
+import org.cloudburstmc.nbt.NbtMap;
+import org.cloudburstmc.nbt.NbtMapBuilder;
+import org.cloudburstmc.nbt.util.stream.NetworkDataInputStream;
+import org.cloudburstmc.protocol.bedrock.packet.BedrockPacket;
+import org.cloudburstmc.protocol.common.util.VarInts;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 
 public class LevelChunkPacket implements BedrockPacketTranslator {
 
+    private static final byte[] FULL_LIGHT = new byte[2048];
+
+    static {
+        Arrays.fill(FULL_LIGHT, (byte) 0xff);
+    }
+
     @Override
     public void translate(BedrockPacket pk, Player player) {
-        com.nukkitx.protocol.bedrock.packet.LevelChunkPacket packet = (com.nukkitx.protocol.bedrock.packet.LevelChunkPacket) pk;
+        org.cloudburstmc.protocol.bedrock.packet.LevelChunkPacket packet = (org.cloudburstmc.protocol.bedrock.packet.LevelChunkPacket) pk;
 
         int subChunksLength = packet.getSubChunksLength();
         ChunkSection[] chunkSections = new ChunkSection[subChunksLength];
@@ -69,10 +77,17 @@ public class LevelChunkPacket implements BedrockPacketTranslator {
         for (int i = 0; i < subChunksLength; i++) {
             MinecraftCodec.CODEC.getHelperFactory().get().writeChunkSection(chunkByteBuf, chunkSections[i]);
         }
+
+        BitSet lightMask = new BitSet();
+        lightMask.set(0, 18);
+        ArrayList<byte[]> skyUpdateList = new ArrayList<>();
+        for (int i = 0; i < 18; i++){
+            skyUpdateList.add(FULL_LIGHT);
+        }
         ClientboundLevelChunkWithLightPacket chunkPacket = new ClientboundLevelChunkWithLightPacket(
                 packet.getChunkX(), packet.getChunkZ(),
                 chunkByteBuf.array(), heightMap, new BlockEntityInfo[0],
-                new LightUpdateData(new BitSet(), new BitSet(), new BitSet(), new BitSet(), Collections.emptyList(), Collections.emptyList(), true)
+                new LightUpdateData(lightMask, new BitSet(), new BitSet(), lightMask, skyUpdateList, Collections.emptyList())
         );
         player.getJavaSession().send(chunkPacket);
         byteBuf.release();
@@ -157,5 +172,10 @@ public class LevelChunkPacket implements BedrockPacketTranslator {
 
     public void networkDecodeVersionOne(ByteBuf byteBuf, ChunkSection chunkSection) {
         networkDecodeVersionEight(byteBuf, new ChunkSection[]{chunkSection}, 0, (byte) 1);
+    }
+
+    @Override
+    public boolean immediate() {
+        return true;
     }
 }

@@ -20,13 +20,13 @@ import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.github.steveice10.opennbt.tag.builtin.LongArrayTag;
 import com.github.steveice10.packetlib.Session;
 import com.github.steveice10.packetlib.event.session.SessionAdapter;
-import com.nukkitx.math.vector.Vector3i;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import org.barrelmc.barrel.auth.AuthManager;
 import org.barrelmc.barrel.server.ProxyServer;
 import org.barrelmc.barrel.utils.Utils;
+import org.cloudburstmc.math.vector.Vector3i;
 
 import java.util.BitSet;
 import java.util.Collections;
@@ -37,15 +37,15 @@ public class AuthServer extends SessionAdapter {
     public AuthServer(Session session, String username) {
         session.send(new ClientboundLoginPacket(
                 0, false, GameMode.ADVENTURE, GameMode.ADVENTURE,
-                1, new String[]{"minecraft:overworld"}, ProxyServer.getInstance().getDimensionTag(),
+                new String[]{"minecraft:overworld"}, ProxyServer.getInstance().getDimensionTag(),
                 "minecraft:overworld", "minecraft:overworld", 100,
-                10, 6, 6, false, true, false, false, null
+                10, 6, 6, false, true, false, false, null, 0
         ));
 
         this.generateWorld(session);
 
         session.send(new ClientboundSetDefaultSpawnPositionPacket(Vector3i.from(8, 82, 8), 0));
-        session.send(new ClientboundPlayerPositionPacket(8, 82, 8, 0, 0, 0, false));
+        session.send(new ClientboundPlayerPositionPacket(8, 82, 8, 0, 0, 0));
 
         session.send(new ClientboundSystemChatPacket(Component.text("§cPlease login with your Xbox account"), false));
         try {
@@ -87,7 +87,7 @@ public class AuthServer extends SessionAdapter {
         session.send(new ClientboundLevelChunkWithLightPacket(
                 0, 0, bytebuf.array(), heightMaps,
                 new BlockEntityInfo[0],
-                new LightUpdateData(new BitSet(), new BitSet(), new BitSet(), new BitSet(), Collections.emptyList(), Collections.emptyList(), true)
+                new LightUpdateData(new BitSet(), new BitSet(), new BitSet(), new BitSet(), Collections.emptyList(), Collections.emptyList())
         ));
         bytebuf.release();
     }

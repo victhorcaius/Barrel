@@ -10,30 +10,26 @@
 
     <repositories>
         <repository>
-            <id>nukkitx-repo-release</id>
-            <url>https://repo.nukkitx.com/maven-releases/</url>
+            <id>opencollab-repo-release</id>
+            <url>https://repo.opencollab.dev/maven-releases/</url>
         </repository>
         <repository>
-            <id>nukkitx-repo-snapshot</id>
-            <url>https://repo.nukkitx.com/maven-snapshots/</url>
-        </repository>
-        <repository>
-            <id>opencollab</id>
+            <id>opencollab-repo-snapshot</id>
             <url>https://repo.opencollab.dev/maven-snapshots/</url>
         </repository>
     </repositories>
 
     <dependencies>
         <dependency>
-            <groupId>com.nukkitx.protocol</groupId>
-            <artifactId>bedrock-v567</artifactId>
-            <version>2.9.17-SNAPSHOT</version>
+            <groupId>org.cloudburstmc.protocol</groupId>
+            <artifactId>bedrock-connection</artifactId>
+            <version>3.0.0.Beta1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.github.steveice10</groupId>
             <artifactId>mcprotocollib</artifactId>
-            <version>1.19.1-SNAPSHOT</version>
+            <version>1.20-1-SNAPSHOT</version>
         </dependency>
 
         <dependency>

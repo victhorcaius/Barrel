@@ -1,9 +1,9 @@
 package org.barrelmc.barrel.network.translator.java;
 
 import com.github.steveice10.mc.protocol.codec.MinecraftPacket;
-import com.nukkitx.protocol.bedrock.packet.AnimatePacket;
 import org.barrelmc.barrel.network.translator.interfaces.JavaPacketTranslator;
 import org.barrelmc.barrel.player.Player;
+import org.cloudburstmc.protocol.bedrock.packet.AnimatePacket;
 
 public class SwingPacket implements JavaPacketTranslator {
 
@@ -13,6 +13,6 @@ public class SwingPacket implements JavaPacketTranslator {
 
         animatePacket.setAction(AnimatePacket.Action.SWING_ARM);
         animatePacket.setRuntimeEntityId(player.getRuntimeEntityId());
-        player.getBedrockClient().getSession().sendPacket(animatePacket);
+        player.getBedrockClientSession().sendPacket(animatePacket);
     }
 }

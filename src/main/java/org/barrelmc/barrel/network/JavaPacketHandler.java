@@ -34,7 +34,7 @@ public class JavaPacketHandler extends SessionAdapter {
             if (packet instanceof ServerboundHelloPacket) {
                 ServerboundHelloPacket loginPacket = (ServerboundHelloPacket) packet;
 
-                if (!ProxyServer.getInstance().getConfig().getAuth().equals("offline") && AuthManager.getInstance().getAccessTokens().containsKey(loginPacket.getUsername())) {
+                if (ProxyServer.getInstance().getConfig().getAuth().equals("offline") || AuthManager.getInstance().getAccessTokens().containsKey(loginPacket.getUsername())) {
                     new Player(loginPacket, session);
 
                     UUID uuid = UUID.nameUUIDFromBytes((loginPacket.getUsername()).getBytes());
