@@ -37,7 +37,7 @@ public class AuthServer extends SessionAdapter {
     public AuthServer(Session session, String username) {
         session.send(new ClientboundLoginPacket(
                 0, false, GameMode.ADVENTURE, GameMode.ADVENTURE,
-                new String[]{"minecraft:overworld"}, ProxyServer.getInstance().getDimensionTag(),
+                new String[]{"minecraft:overworld"}, ProxyServer.getInstance().getRegistryCodec(),
                 "minecraft:overworld", "minecraft:overworld", 100,
                 10, 6, 6, false, true, false, false, null, 0
         ));

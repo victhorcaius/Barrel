@@ -45,7 +45,7 @@ public class StartGamePacket implements BedrockPacketTranslator {
                 (int) packet.getRuntimeEntityId(), false,
                 TranslatorUtils.translateGamemodeToJE(packet.getPlayerGameType()),
                 TranslatorUtils.translateGamemodeToJE(packet.getPlayerGameType()),
-                new String[]{"minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"}, ProxyServer.getInstance().getDimensionTag(),
+                new String[]{"minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"}, ProxyServer.getInstance().getRegistryCodec(),
                 "minecraft:overworld", "minecraft:overworld", 100,
                 10, 16, 16, false, true, false, false, null, 0
         );
@@ -57,5 +57,10 @@ public class StartGamePacket implements BedrockPacketTranslator {
         ClientboundPlayerPositionPacket serverPlayerPositionRotationPacket = new ClientboundPlayerPositionPacket(position.getX(), position.getY(), position.getZ(), rotation.getY(), rotation.getX(), 0);
         player.getJavaSession().send(serverPlayerPositionRotationPacket);
         player.getJavaSession().send(new ClientboundEntityEventPacket((int) packet.getRuntimeEntityId(), EntityEvent.PLAYER_OP_PERMISSION_LEVEL_0));
+    }
+
+    @Override
+    public boolean immediate() {
+        return true;
     }
 }

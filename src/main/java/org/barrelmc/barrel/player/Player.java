@@ -77,6 +77,8 @@ public class Player extends Vector3 {
     @Getter
     private String username;
     @Getter
+    private String javaUsername;
+    @Getter
     private String xuid;
     @Getter
     private String UUID;
@@ -168,7 +170,6 @@ public class Player extends Vector3 {
         Config config = ProxyServer.getInstance().getConfig();
         InetSocketAddress bedrockAddress = new InetSocketAddress(config.getBedrockAddress(), config.getBedrockPort());
         try {
-            Player player = this;
             channel = new Bootstrap().channelFactory(RakChannelFactory.client(NioDatagramChannel.class))
                     .group(new NioEventLoopGroup())
                     .option(RakChannelOption.RAK_PROTOCOL_VERSION, ProxyServer.getInstance().getBedrockPacketCodec().getRaknetProtocolVersion())
@@ -177,7 +178,7 @@ public class Player extends Vector3 {
                         protected void initSession(BedrockClientSession session) {
                             bedrockClientSession = session;
                             session.setCodec(ProxyServer.getInstance().getBedrockPacketCodec());
-                            session.setPacketHandler(new BedrockBatchHandler(player));
+                            session.setPacketHandler(new BedrockBatchHandler(Player.this));
 
                             RequestNetworkSettingsPacket requestNetworkSettingsPacket = new RequestNetworkSettingsPacket();
                             requestNetworkSettingsPacket.setProtocolVersion(ProxyServer.getInstance().getBedrockPacketCodec().getProtocolVersion());
@@ -185,12 +186,12 @@ public class Player extends Vector3 {
                         }
                     })
                     .connect(bedrockAddress)
-                    .syncUninterruptibly().channel();
+                    .awaitUninterruptibly().channel();
+            this.javaUsername = javaLoginPacket.getUsername();
+            ProxyServer.getInstance().addBedrockPlayer(this);
         } catch (Exception exception){
             javaSession.disconnect("Failed to connect: " + exception);
         }
-
-        ProxyServer.getInstance().getOnlinePlayers().put(javaLoginPacket.getUsername(), this);
     }
 
     public LoginPacket getOnlineLoginPacket() throws Exception {
@@ -262,12 +263,11 @@ public class Player extends Vector3 {
 
     private void offlineLogin(ServerboundHelloPacket javaLoginPacket) {
         this.xuid = "";
-        this.username = javaLoginPacket.getUsername();
+        this.username = this.javaUsername = javaLoginPacket.getUsername();
         this.UUID = java.util.UUID.randomUUID().toString();
         Config config = ProxyServer.getInstance().getConfig();
         InetSocketAddress bedrockAddress = new InetSocketAddress(config.getBedrockAddress(), config.getBedrockPort());
         try {
-            Player player = this;
             channel = new Bootstrap().channelFactory(RakChannelFactory.client(NioDatagramChannel.class))
                     .group(new NioEventLoopGroup())
                     .option(RakChannelOption.RAK_PROTOCOL_VERSION, ProxyServer.getInstance().getBedrockPacketCodec().getRaknetProtocolVersion())
@@ -276,7 +276,7 @@ public class Player extends Vector3 {
                         protected void initSession(BedrockClientSession session) {
                             bedrockClientSession = session;
                             session.setCodec(ProxyServer.getInstance().getBedrockPacketCodec());
-                            session.setPacketHandler(new BedrockBatchHandler(player));
+                            session.setPacketHandler(new BedrockBatchHandler(Player.this));
 
                             RequestNetworkSettingsPacket requestNetworkSettingsPacket = new RequestNetworkSettingsPacket();
                             requestNetworkSettingsPacket.setProtocolVersion(ProxyServer.getInstance().getBedrockPacketCodec().getProtocolVersion());
@@ -284,12 +284,11 @@ public class Player extends Vector3 {
                         }
                     })
                     .connect(bedrockAddress)
-                    .syncUninterruptibly().channel();
+                    .awaitUninterruptibly().channel();
+            ProxyServer.getInstance().addBedrockPlayer(this);
         } catch (Exception exception) {
             javaSession.disconnect("Failed to connect: " + exception);
         }
-
-        ProxyServer.getInstance().getOnlinePlayers().put(javaLoginPacket.getUsername(), this);
     }
 
     public LoginPacket getLoginPacket() {
@@ -412,13 +411,17 @@ public class Player extends Vector3 {
 
     public void disconnect(String reason) {
         playerInputExecutor.shutdown();
-        this.bedrockClientSession.disconnect();
+        try {
+            this.bedrockClientSession.disconnect();
+        } catch (Throwable ignored) {
+        }
         if (this.channel.isOpen()) {
-            this.channel.disconnect().syncUninterruptibly();
-            this.channel.parent().disconnect().syncUninterruptibly();
+            this.channel.disconnect();
+            this.channel.parent().disconnect();
         }
         this.javaSession.disconnect(reason);
-        ProxyServer.getInstance().getOnlinePlayers().remove(username);
+        ProxyServer.getInstance().removeBedrockPlayer(javaUsername);
+        System.out.println(javaUsername + " disconnected: " + reason);
     }
 
     @Override
